@@ -50,16 +50,6 @@
 
 容器是一种技术的统称，Docker只是实现了容器的生命周期管理，而真正启动容器的是runc（容器运行时），它是根据OCI定制的标准来控制容器。在runc上一层是Containerd，作为底层管理容器的标准，调用runc来处理容器。然后再之上就是Docker，Mesos等容器平台，总的来说就是我们看到容器技术分为两部分 最上层：容器平台 docker，Mesos； 中层：各种容器运行时: runC（docker 使用Containerd来管理runC） 、kata container（实现容器内核隔离等，都是需要遵守k8s的OCR 容器运行时标准接口，这样才能被接入
 
-### Docker 命令
-
-- 停止容器：docker stop 容器ID 这种是向容器发送停止命令等待返回 还有kill直接杀死容器进程
-- 查看容器：docker ps -a
-- 进入容器：docker attach 容器ID | docker exec -it 容器ID bash
-- 删除容器：docker rm 容器ID
-- 映射端口：docker run -d -p 91:80 nginx  容器端口为80 主机端口为91 //P 为随机映射端口
-- 查看容器存储目录：docker inspect -f "{{.State.Pid}}" 容器ID
-- 查看容器日志：docker logs 容器ID
-
 
 
 
