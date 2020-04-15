@@ -85,7 +85,7 @@
 
   在最开始的Serverless的最开始可能更像是FaaS，作为开发人员，只需要写一个函数，就可以在例如AWS Lambda等各种函数计算平台上运行起来，实现了对服务器的无感知，同时可以对外快速暴露API接口，可以基于函数级别的自动扩缩容，可以监听各种事件进行触发。
 
-  ![img](https://github.com/qq1141000259/k8s-learning/master/resource/serverless.png)
+  ![img](https://github.com/qq1141000259/k8s-learning/blob/master/resource/serverless.png)
 
   上面的这个过程就是一个serveless服务， 从头到尾用户没有去申请系统资源，也没有对系统资源做任何运维相关的工作
 
