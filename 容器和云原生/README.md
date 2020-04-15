@@ -1,10 +1,10 @@
 ### 云原生(CloudNative)
 
-- ###云原生的背景
+- 云原生的背景
 
   随着云计算平台的成熟，应用上云已经形成一种趋势，未来的应用大致分为两种**构建云的应用**和**基于云构建**
 
-- ####什么是云原生
+- 什么是云原生
 
   最初是由2013年Pivotal公司的Matt Stine 提出，可以看成是一套构建和运行应用程序的技术体系或方法论，
 
@@ -14,7 +14,7 @@
 
   所以可以这样理解：云原生 = **DevOps+持续交付(Continuous Delivery)+微服务(Micro Services)+敏捷基础设施(Agile Infrastructure)+12要素(The Twelve-Factor App)+服务网格（Service Mesh）+声明式API**
 
-- ####云原生和传统应用的区别
+- 云原生和传统应用的区别
 
   - **云原生更倡导敏捷，自动化，容错**，而传统应用则大多还处于原生的瀑布开发模型和人工运维阶段。
 
@@ -29,7 +29,7 @@
     | **可用性**   | 故障后可能影响业务     | 无状态，面向失败编程                         |
     | **可靠性**   | 本地资源，故障率高     | 云资源，可靠性高                             |
 
-- ####云原生-12要素
+- 云原生-12要素
 
   1. Codebase基准代码
      One codebase tracked in revision control, many deploys 一份基准代码，多份部署
@@ -57,7 +57,7 @@
   12. Admin processes管理进程
       Run admin/management tasks as one-off processes后台管理任务当作一次性进程运行
 
-- #### 云原生-服务网格
+- 云原生-服务网格
 
   - 服务网格定义
 
@@ -75,7 +75,7 @@
 
   - 
 
-- #### Serverless
+- Serverless
 
   云计算的发展 **IDC -> IaaS -> SaaS -> Serverless/FaaS**
 
@@ -85,7 +85,7 @@
 
   在最开始的Serverless的最开始可能更像是FaaS，作为开发人员，只需要写一个函数，就可以在例如AWS Lambda等各种函数计算平台上运行起来，实现了对服务器的无感知，同时可以对外快速暴露API接口，可以基于函数级别的自动扩缩容，可以监听各种事件进行触发。
 
-  ![img](http://km.oa.com/files/photos/pictures/201911/1574672045_90_w2298_h1126.png)
+  ![img](https://github.com/qq1141000259/k8s-learning/master/resource/serverless.png)
 
   上面的这个过程就是一个serveless服务， 从头到尾用户没有去申请系统资源，也没有对系统资源做任何运维相关的工作
 
