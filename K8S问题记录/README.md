@@ -110,8 +110,8 @@
             create_man: ginxzheng
             env: pod
         spec:
-        	nodeSelector:
-        		gpu: true
+          nodeSelector:
+            gpu: true
           containers:
           - image: ginx:v3
             name: ginx-c1
@@ -161,9 +161,9 @@
         selector:
         	matchExpressions:
         	- key: app
-        		operator: In
-        		values:
-        			- kubia  # 标签值必须为kubia
+            operator: In
+            values:
+            - kubia  # 标签值必须为kubia
         ```
 
         
@@ -244,9 +244,9 @@
      metadata:
        name: batch-job
      spec:
-     	completions: 5   # 顺序运行5个pod
-     	parallelism: 2   # 最大并行2个
-     	activeDeadlineSeconds: 100  # 最大pod执行时间
+       completions: 5   # 顺序运行5个pod
+       parallelism: 2   # 最大并行2个
+       activeDeadlineSeconds: 100  # 最大pod执行时间
        template:
          metadata:
            labels:
