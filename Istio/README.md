@@ -1,8 +1,9 @@
-###什么是Istio
+### 什么是Istio
 
 istio是一个开源的实现了服务网格的平台，基于k8s平台，具有负载均衡、服务间认证、监控等功能，为业务应用服务。
 
 ### 安装Istio
+istio的安装是基于k8s平台的，本地测试可以使用minikube搭建k8s本平台，具体看我的minikube安装 https://github.com/qq1141000259/k8s-learning/tree/master/Minikube
 
 - 通过istioctl 安装
 
@@ -14,7 +15,7 @@ istio是一个开源的实现了服务网格的平台，基于k8s平台，具有
 
   查看安装的服务 `kubectl get svc -n istio-system `
 
-###安装kiali
+### 安装kiali
 
 - 修改kiali
 
