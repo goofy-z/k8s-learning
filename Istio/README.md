@@ -188,8 +188,204 @@ istio的安装是基于k8s平台的，本地测试可以使用minikube搭建k8s�
 
   到此我们已经能够从k8s集群之外(也就是 istio 框架外)访问到我们的服务网格的网关`istio-ingressgateway`,通过网关又能找到我们应用网关`bookinfo-gateway`
 
-- 
+- 现在我们知道了从外部请求到应用的网关`bookinfo-gateway`，那么又是如何进入到应用的呢
 
+  还是通过创建`bookinfo-gateway`的yaml来分析，发现在创建gateway资源的同时还创建了`VirtualService` `samples/bookinfo/networking/bookinfo-gateway.yaml `
+  
+  ```yaml
+  apiVersion: networking.istio.io/v1alpha3
+  kind: VirtualService
+  metadata:
+    name: bookinfo
+  spec:
+    hosts:
+    - "*"
+    gateways:
+    - bookinfo-gateway
+    http:
+    - match:
+      - uri:
+          exact: /productpage
+      - uri:
+          prefix: /static
+      - uri:
+          exact: /login
+      - uri:
+          exact: /logout
+      - uri:
+          prefix: /api/v1/products
+      route:
+      - destination:
+          host: productpage
+          port:
+            number: 9080
+  ```
+  
+  在istio框架中，虚拟服务(Virtual service)和目标规则(destination rule)，是流量路由功能的关键组成。其中spec.gateways的`gateways`为`bookinfo-gateway`,也就是说这个gateway收到的请求会匹配到http中的uri下，并且转发的目标地址为`productpage`服务下的9080端口，我们可以看下这个`productpage`服务
+  
+  ```shell
+  你好,欢迎使用kubectl
+  NAME          TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE
+  productpage   ClusterIP   10.96.41.204   <none>        9080/TCP   4d22h
+  ```
+  
+  再查看这个服务作用的pod为`app=productpage`
+  
+  ```
+  你好,欢迎使用kubectl
+  NAME                              READY   STATUS    RESTARTS   AGE
+  productpage-v1-596598f447-wkvxj   2/2     Running   0          5d1h
+  ```
+  
+  如果你用`kubectl exec -it productpage-v1-596598f447-wkvxj /bin/bash`进入，你就会发现这个productpage其实是一个Flask（python的web框架）的应用，代码里用`requests`发起请求去访问另外三个服务
+  
+  `ratings, reviews, details`,通过ClushIP进行容器间通信
+  
+  在pod内进入python命令行模式我们进行测试
+  
+  ```python
+  >>> res = requests.get("http://reviews:9080/reviews/1")
+  >>> res
+  <Response [200]>
+  >>> res.text
+  '{"id": "1","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!", "rating": {"stars": 5, "color": "black"}},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare.", "rating": {"stars": 4, "color": "black"}}]}'
+  ```
+  
+  再回到宿主机，我们来查看另外三个服务
+  
+  ```shell
+  kubectl get svc
+  你好,欢迎使用kubectl
+  NAME          TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+  details       ClusterIP   10.96.132.128   <none>        9080/TCP   5d1h
+  kubernetes    ClusterIP   10.96.0.1       <none>        443/TCP    5d17h
+  productpage   ClusterIP   10.96.41.204    <none>        9080/TCP   4d23h
+  ratings       ClusterIP   10.96.95.141    <none>        9080/TCP   5d1h
+  reviews       ClusterIP   10.96.235.173   <none>        9080/TCP   5d1h
+  ```
+  
+  其中kubernetes 是minikube所生成的，在看它们作用的pod
+  
+  ```shell
+  kubectl get pods
+  你好,欢迎使用kubectl
+  NAME                              READY   STATUS    RESTARTS   AGE
+  details-v1-78d78fbddf-p98fn       2/2     Running   0          5d1h
+  productpage-v1-596598f447-wkvxj   2/2     Running   0          5d1h
+  ratings-v1-6c9dbf6b45-v8nqg       2/2     Running   0          5d1h
+  reviews-v1-7bb8ffd9b6-hsdb7       2/2     Running   0          5d1h
+  reviews-v2-d7d75fff8-2hw7m        2/2     Running   0          5d1h
+  reviews-v3-68964bc4c8-6hllk       2/2     Running   0          5d1h
+  ```
+  
+  我们会发现这个reviews居然有三个pod，还分成了1，2，3版本。这里其实是对review这个应用起了三个deployment来管理三个版本的pod
+  
+  ```shell
+  kubek get deployment
+  你好,欢迎使用kubectl
+  NAME             READY   UP-TO-DATE   AVAILABLE   AGE
+  details-v1       1/1     1            1           5d1h
+  productpage-v1   1/1     1            1           5d1h
+  ratings-v1       1/1     1            1           5d1h
+  reviews-v1       1/1     1            1           5d1h
+  reviews-v2       1/1     1            1           5d1h
+  reviews-v3       1/1     1            1           5d1h
+  ```
+  
+  而这三个版本就是deployement资源的特征，在管理pod的时候又能进行版本控制，三个版本对应的效果
+  
+  V1: 在productpage页面不会显示评分信息
+  
+  V2: 在productpage页面显示1到5个黑色评分信息
+  
+  V3: 在productpage页面显示1到5个红色评分信息
+  
+  在默认的情况下，你对 reviews服务发起请求，将会被均匀的分配在这三个版本的应用上，你不断在http://9.134.114.175:30833/productpage 这个页面刷新观察评分就能看到这样的效果。
+  
+  但是，如果我想取消掉某个应用的请求，或分配权重，我们可以通过给reviews服务增加virtualService + DestinationRule来控制转发, `samples/bookinfo/networking/virtual-service-reviews-v2-v3.yaml`
+  
+  ```yaml
+  apiVersion: networking.istio.io/v1alpha3
+  kind: VirtualService
+  metadata:
+    name: reviews
+  spec:
+    hosts:
+      - reviews
+    http:
+    - route:
+      - destination:
+          host: reviews
+          subset: v2
+        weight: 50
+      - destination:
+          host: reviews
+          subset: v3
+        weight: 50
+  ```
+  
+  如你所见，我们在为 reviews这个host配置了权重为50的转发规则，它们的subset 分别是v2和v3,这个subset将会指引我们去DestinationRule中找到对应的pod
+  
+  `samples/bookinfo/networking/destination-rule-reviews.yaml`
+  
+  ```yaml
+  apiVersion: networking.istio.io/v1alpha3
+  kind: DestinationRule
+  metadata:
+    name: reviews
+  spec:
+    host: reviews
+    trafficPolicy:
+      loadBalancer:
+        simple: RANDOM
+    subsets:
+    - name: v1
+      labels:
+        version: v1
+    - name: v2
+      labels:
+        version: v2
+    - name: v3
+      labels:
+        version: v3
+  ```
+  
+  我们能够看到对于subsets下分别分配了不同的label属性--version，其实这些就是我们的`reviews`服务下的所有pod
+  
+  ```
+  kubectl get pods -l app=reviews --show-labels
+  你好,欢迎使用kubectl
+  NAME                          READY   STATUS    RESTARTS   AGE    LABELS
+  reviews-v1-7bb8ffd9b6-hsdb7   2/2     Running   0          5d1h   app=reviews,pod-template-hash=7bb8ffd9b6,security.istio.io/tlsMode=istio,version=v1
+  reviews-v2-d7d75fff8-2hw7m    2/2     Running   0          5d1h   app=reviews,pod-template-hash=d7d75fff8,security.istio.io/tlsMode=istio,version=v2
+  reviews-v3-68964bc4c8-6hllk   2/2     Running   0          5d1h   app=reviews,pod-template-hash=68964bc4c8,security.istio.io/tlsMode=istio,version=v3
+  ```
+  
+  接下来，我们分别应用这两个配置,必须两个都要
+  
+  `k apply -f destination-rule-reviews.yaml` 和 `kubectl apply -f virtual-service-reviews-v2-v3.yaml`
+  
+  ```shell
+  k get virtual-service
+  你好,欢迎使用kubectl
+  NAME       GATEWAYS             HOSTS       AGE
+  bookinfo   [bookinfo-gateway]   [*]         5d1h
+  reviews                         [reviews]   16s
+  
+  k get destinationrule
+  你好,欢迎使用kubectl
+  NAME      HOST      AGE
+  reviews   reviews   5s
+  ```
+  
+  最终你就能看到你想要的效果了
+  
+  
+  
+  
+  
+  
+  
   
 
 
