@@ -191,9 +191,9 @@
      myserver-http   LoadBalancer   10.96.238.208   <pending>     8080:32265/TCP   21m
      ```
 
-     2. 将本地网络端口转发到pod端口
+     2. 将本地端口映射到pod端口
 
-        请求本地8888能访问集群pod的8080端口，常用于测试
+        请求本地8888能访问服务kubia-manual 的pod的8080端口，常用于测试
 
         `kubectl port-forward kubia-manual 8888:8080 `
 
