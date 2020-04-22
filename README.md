@@ -18,7 +18,26 @@
   - [Istio Handbook](https://www.servicemesher.com/istio-handbook/) 
   - [ServiceMesh有关](https://www.servicemesher.com/categories/istio/)
 ## k8s有关：  
-  - [Kubernetes Handbook——Kubernetes中文指南/云原生应用架构实践手册](https://jimmysong.io/kubernetes-handbook/)、
+  - [Kubernetes Handbook——Kubernetes中文指南/云原生应用架构实践手册](https://jimmysong.io/kubernetes-handbook/)
+  
+## go相关资料学习：
+  - 基础知识
+    [go语言通用网络连接池](https://github.com/silenceper/pool)
+    [go 并发](https://www.kancloud.cn/mutouzhang/go/596806)
+    一些隐蔽的基础文档
+  
+  - 业界实践文档
+    [Go 在探探后端的使用](https://juejin.im/entry/5b05095bf265da0b767dd3d9)
+    [知乎go](https://zhuanlan.zhihu.com/p/48039838)
+    [饿了么 goroutine stack](https://zhuanlan.zhihu.com/p/28409657)
+    [滴滴go搭建核心业务平台](https://juejin.im/entry/5ae98b98f265da0ba60f9c97)
+    
+  - grpc相关 
+    [grpc 实践](https://www.bookstack.cn/read/go-grpc/summary.md)
+    [protobuf3 指南](https://blog.csdn.net/u011518120/article/details/54604615)
+    
+  - 
+    
   
  
   
