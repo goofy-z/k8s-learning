@@ -24,7 +24,8 @@
   - 基础知识
     1. [go语言通用网络连接池](https://github.com/silenceper/pool)
     2. [go 并发](https://www.kancloud.cn/mutouzhang/go/596806)
-    3. 一些隐蔽的基础文档
+    3. [go 命令详解](https://github.com/hyper0x/go_command_tutorial)
+    4. 一些隐蔽的基础文档
   
   - 业界实践文档
     1. [Go 在探探后端的使用](https://juejin.im/entry/5b05095bf265da0b767dd3d9)
