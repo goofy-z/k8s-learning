@@ -179,10 +179,12 @@
 
    - 外部访问pod
 
-     1. 暴露服务，外部能够访问pod需要通过服务对象公开，创建LoadBalancer类型，常规服务Clusterip
+     1. 暴露服务，外部能够访问pod需要通过服务对象公开，创建LoadBalancer类型，原理也就是在nodepod上做了一层，把流量分配到每一个节点，然后节点上的pod通过Cluster IP进行通信。
+
+        
 
         `kubectl expose rc myserver --type=LoadBalancer --name myserver-http`
-
+        
         此时在用 `kubectl get services` 结果，minikube没有loadBalancer服务，所有外部ip为空
 
      ```shell
@@ -205,20 +207,65 @@
 
 3. k8s的一些其他资源
 
-   - DaemonSet 
+   - Deployment
 
-     DaemonSet将pod部署在所有节点，并且每个节点都只部署一个pod，当然也可以指定selector来部署某个节点
+     管理rs，rs管理pod，可以实现一键回滚，版本记录
 
      yaml示例
 
      ```yaml
      apiVersion: apps/v1
-     kind: DaemonSet
+     kind: Deployment
      metadata:
-       name: ssd-monitor
+         name: alpine
+         labels:
+             app: goofy-deployment
      spec:
+         # 期望pod数量
+         replicas: 2
+         # pod选择器
+         selector:
+             matchLabels:
+                 app: goofy-alpine
+         # pod 模版
+         template:
+             metadata:
+                 labels: 
+                     app: goofy-alpine
+             spec:
+              containers:
+                 - name: alpine-app
+                image: goofy123/goofy-alpine:v1.0   
+     ```
+
+     一键升级版本
+
+     `kubectl set image deployment/alpine alpine-app=goofy123/goofy-alpine:v2`
+   
+     - **deployment/alpine**代表资源类型和资源名称
+   
+     - **alpine-app**是我们的容器名称，后面就是镜像名称
+   
+     一键回退版本
+   
+     `kubectl rollout undo deployment/alpine`
+   
+     
+   
+   - DaemonSet 
+   
+     DaemonSet将pod部署在所有节点，并且每个节点都只部署一个pod，当然也可以指定selector来部署某个节点
+   
+     yaml示例
+   
+     ```yaml
+    apiVersion: apps/v1
+     kind: DaemonSet
+    metadata:
+       name: ssd-monitor
+    spec:
        selector:
-         matchLabels:
+      matchLabels:
            app: ssd-monitor
        template:
          metadata:
@@ -231,14 +278,14 @@
            - name: main
              image: luksa/ssh-monitor
      ```
-
+   
    - Job资源
-
+   
      运行单个任务的pod，并且不会像rc或者rs那样在任务完成退出后还重启容器
-
+   
      yaml示例
-
-     ```yaml
+   
+  ```yaml
      apiVersion: batch/v1
      kind: Job
      metadata:
@@ -256,14 +303,14 @@
            containers:
            - name: main
              image: luksa/batch-job
-     ```
+  ```
 
      同时也可以使用`kubectl scale job xxx --replicas 3` 并行扩到3个
 
    - CronJob
-
+   
      定时任务, 定时执行的对象为Job， 查看`k get cronjobs`
-
+   
      ```yaml
      apiVersion: batch/v1beta1
      kind: CronJob
@@ -283,5 +330,5 @@
                - name: main
                  image: luksa/batch-job
      ```
-
+   
      

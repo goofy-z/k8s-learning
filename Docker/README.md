@@ -1,5 +1,7 @@
 ### 安装Docker
 
+Docker registry docker镜像仓库
+
 二进制安装
 
 - 下载二进制安装包 https://download.docker.com/linux/static/stable/x86_64/
