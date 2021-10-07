@@ -127,6 +127,13 @@ Docker registry docker镜像仓库
 
 2. 基础操作
 
+   创建
+
+   `docker run -d -p 0.0.0.0:31338:80 -e OJ_HOST_NAME="118.89.90.113" -e OJ_USER_NAME="root" -e OJ_PASSWORD="zgh19950605" -e OJ_DB_NAME="jol" daocloud.io/atsctoo/hustoj:3.0.0`
+
+   - -e: 指定环境变量
+   - -m：100M 指定内存
+
    登陆
 
    `docker login --username=xxxx 仓库域名`
@@ -160,8 +167,16 @@ Docker registry docker镜像仓库
 
    构建镜像:
 
-   ​			 `docker build /home/admin/application/ -t riji:product`
+   - docker commit
 
-   
+     `docker commit -a goofy -m "增加go 1.10.4编译器" aadbb93e0fe5fb634ba099 hustoj:2.3.0`
+
+   - Dockerfile
+
+   ​	   `docker build /home/admin/application/ -t riji:product`
+
+   vi /etc/docker/daemon.json
 
 3. 待续。。。
+
+4. libmariadb-dev-compat libmariadb-dev

@@ -1,30 +1,55 @@
+[toc]
+
+
+
 ### k8s问题排查
 
-1. 容器状态CrashLoopBackOff
+####容器状态CrashLoopBackOff
 
-   - 状态原因：Kubernetes试图启动该Pod，但是过程中出现错误，导致容器启动失败或者正在被删除。
+- 状态原因：Kubernetes试图启动该Pod，但是过程中出现错误，导致容器启动失败或者正在被删除。
 
-   - 查看日志
+- 查看日志
 
-     - 先查看CrashLoop状态的pod.  `kubectl get pods`
+  - 先查看CrashLoop状态的pod.  `kubectl get pods`
 
-       - 查看详细信息 `kubectl describe pod podName`,  查看字段 State  Laste State 观察各自的Reason是否是ERROR
+    - 查看详细信息 `kubectl describe pod podName`,  查看字段 State  Laste State 观察各自的Reason是否是ERROR
 
-       - 观察到如下 意思是启动容器后马上就完成了，然后终止，然后k8s一直在启动
+    - 观察到如下 意思是启动容器后马上就完成了，然后终止，然后k8s一直在启动
 
-         ```shell
-         State:          Waiting
-               Reason:       CrashLoopBackOff
-             Last State:     Terminated
-               Reason:       Completed
-               Exit Code:    0
-               Started:      Sun, 12 Jan 2020 13:38:10 +0800
-               Finished:     Sun, 12 Jan 2020 13:38:10 +0800
-         ```
+      ```shell
+      State:          Waiting
+            Reason:       CrashLoopBackOff
+          Last State:     Terminated
+            Reason:       Completed
+            Exit Code:    0
+            Started:      Sun, 12 Jan 2020 13:38:10 +0800
+            Finished:     Sun, 12 Jan 2020 13:38:10 +0800
+      ```
 
-         
 
-   
+#### 容器状态Init:Error
+
+内存不够。
+
+集群不能apply文件
+
+timeout 分析是webhook连接不通，检查svc和endpoint还有对应的pod都是正常的
+
+```
+for tekton.dev/v1alpha1, Kind=Task failed: Post https://tekton-pipeline-webhook.tekton-pipeline.svc:443/resource-conversion?timeout=30s: dial tcp 172.31.73.4:443: connect: connection timed out
+```
+
+原因：
+
+Kube-proxy有一个副本挂了，下面是一个svc的分析文档
+
+```
+https://kubernetes.io/zh/docs/tasks/debug-application-cluster/debug-service/
+```
+
+
+
+
 
 2. k8s报错 No API token found for service account "default", retry after the token is automatically
 
@@ -36,299 +61,45 @@
 
 3. pod出Terminating状态一直删除不了
 
-###K8S操作
+4. 镜像被删除
 
-1. 基础命令
+   k8存在镜像回收机制，当磁盘压力过大，就会去删除镜像
 
-   获取pdo，node简单命令：kubectl get pods | kubectl get nodes
+   查看kube组件日志
 
-   - kubectl get services 获取服务
+   `journalctl -u kubelet`
 
-   - kubectl get rc 获取副本状态
+5. 批量删除驱逐的pod
 
-   - Kubect get pods -o wide 获取pod详情包含节点
+   ```shell
+   for ns in `kubectl get ns|awk '{print $1}'`; do echo "$ns clean" && for i in `kubectl -n $ns get pods |grep Evicted|awk '{print $1}'`;do  kubectl -n $ns delete pod $i ;done ;done
+   ```
 
-   - kubectl get po --show-labels  查看pod标签
+6. 批量删除pr
 
-   - 删除pod或资源
+   ```
+   kubectl get pr -n kongtianbei|awk -F ' ' '{print $1}'
+   ```
 
-     kubectl delete pod xxxx  --grace-period=0 --force 强制删除
+   ```
+   kubectl get prs -n kongtianbei|awk -F ' ' '{print $1}'|xargs -I pr_name kubectl delete pr pr_name -n kongtianbei
+   ```
 
-   - 获取标签
-
-     1. 根据标签筛选 `kubectl get pod -l create_man=ginxzheng`
-     2. 给节点或pod新增标签status `kubectl label node minikube status=true`(修改加上 --overwrite=true)
-     3. 列出某一列标签 `kubectl get nodes -L status`
-
-   - namespace有关
-
-     namespace 是在标签之上 再将容器进行划分，每个ns下都有着各自的容器标签
-
-     1. 查看ns.
-
-        Kubectl get ns 
-
-     2. 可以使用yaml创建ns
-
-        ```yaml
-        apiVersion: v1
-        kind: Namespace
-        metadata:
-          name: my-namespace
-        ```
-
-     3. 切换ns，上下文
-
-        查看当前的上下文: 从配置中 `kubectl config view`获取上下文 
-
-        切换当前namespace `kubectl config set-context minikube --namespace xxxx`
-
-        删除namespace `kubectl delete ns xxxx`
-
-2. 简单的创建一个应用
-
-   - 创建应用  
-
-     1. 命令行创建
-
-        `kubectl run "server" --image=ginx:v3 --generator=run-pod/v1`
-
-        --image 指定一个镜像
-
-        --generator=run-pod/v1 创建一个 Replication*Controller* （没有删除rc，任何删除pod的操作会重拉pod）
-
-     2. yaml文件创建
-
-        kubectl create -f xxx.yaml
-
-        ```yaml
-        apiVersion: v1
-        kind: Pod
-        metadata:
-          name: ginx
-          labels:   # pod标签
-            create_man: ginxzheng
-            env: pod
-        spec:
-          nodeSelector:
-            gpu: true
-          containers:
-          - image: ginx:v3
-            name: ginx-c1
-            ports:
-            - containerPort: 8089
-              protocol: TCP
-        ```
-
-     3. 通过rc或者rs创建pod
-
-        replicationController 作为一种k8s资源，可以保证pod持续运行，需要将pod加入或移除rc则只需要更改pod
-
-        的标签，replicaSet 基本和rc一致，知识标签选择器更强大
-
-        包括三部分
-
-        - label selector pod标签选择其，用于确定rc的作用域
-        - replica count 副本个数，pod的数量
-        - pod template pod的模版
-
-        例子:
-
-        ```yaml
-        apiVersion: v1  # 如果是rs 则这为 apps/v1
-        kind: ReplicationController  # rs 则为 ReplicaSet
-        metadata:
-          name: kubia
-        spec:
-          replicas: 3
-          selector: 
-            app: kubia  # 选择标签 app等于kubia的pod
-          template:
-            metadata:
-              labels:
-                app: kubia
-            spec:
-              containers:
-              - name: kubia
-                image: luksa/kubia
-                ports:
-                - containerPort: 8080
-        ```
-
-        对于使用rs的负载selector,可以这么写:
-
-        ```yaml
-        selector:
-        	matchExpressions:
-        	- key: app
-            operator: In
-            values:
-            - kubia  # 标签值必须为kubia
-        ```
-
-        
-
-        修改rc `kubectl edit rc kubia` 这将会在默认编辑器里打开文件，修改模版只作用于后面生成的pod
-
-        对rc进行扩所容 
-
-        - 扩缩容 `kubectl scale rc kubia --replicas=10` 修改数字实现扩所容 实际是在对rc的声明文件进行修改
-        - 直接修改定义文件 
-
-        删除rc或是rs默认是把所关联的pod删除 `kubectl delete rc kubia --cascade=false` 以上为不删除pod
-
-   - 外部访问pod
-
-     1. 暴露服务，外部能够访问pod需要通过服务对象公开，创建LoadBalancer类型，原理也就是在nodepod上做了一层，把流量分配到每一个节点，然后节点上的pod通过Cluster IP进行通信。
-
-        
-
-        `kubectl expose rc myserver --type=LoadBalancer --name myserver-http`
-        
-        此时在用 `kubectl get services` 结果，minikube没有loadBalancer服务，所有外部ip为空
-
-     ```shell
-     NAME            TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
-     kubernetes      ClusterIP      10.96.0.1       <none>        443/TCP          10d
-     myserver-http   LoadBalancer   10.96.238.208   <pending>     8080:32265/TCP   21m
-     ```
-
-     2. 将本地端口映射到pod端口
-
-        请求本地8888能访问服务kubia-manual 的pod的8080端口，常用于测试
-
-        `kubectl port-forward kubia-manual 8888:8080 `
-
-   - 扩所容服务
-
-     kubectl scale re kubia --replicas=3  针对kubia服务扩容
-
-     
-
-3. k8s的一些其他资源
-
-   - Deployment
-
-     管理rs，rs管理pod，可以实现一键回滚，版本记录
-
-     yaml示例
-
-     ```yaml
-     apiVersion: apps/v1
-     kind: Deployment
-     metadata:
-         name: alpine
-         labels:
-             app: goofy-deployment
-     spec:
-         # 期望pod数量
-         replicas: 2
-         # pod选择器
-         selector:
-             matchLabels:
-                 app: goofy-alpine
-         # pod 模版
-         template:
-             metadata:
-                 labels: 
-                     app: goofy-alpine
-             spec:
-              containers:
-                 - name: alpine-app
-                image: goofy123/goofy-alpine:v1.0   
-     ```
-
-     一键升级版本
-
-     `kubectl set image deployment/alpine alpine-app=goofy123/goofy-alpine:v2`
    
-     - **deployment/alpine**代表资源类型和资源名称
-   
-     - **alpine-app**是我们的容器名称，后面就是镜像名称
-   
-     一键回退版本
-   
-     `kubectl rollout undo deployment/alpine`
-   
-     
-   
-   - DaemonSet 
-   
-     DaemonSet将pod部署在所有节点，并且每个节点都只部署一个pod，当然也可以指定selector来部署某个节点
-   
-     yaml示例
-   
-     ```yaml
-    apiVersion: apps/v1
-     kind: DaemonSet
-    metadata:
-       name: ssd-monitor
-    spec:
-       selector:
-      matchLabels:
-           app: ssd-monitor
-       template:
-         metadata:
-           labels:
-             app: ssd-monitor
-         spec:
-           nodeSelector:
-             disk: ssd
-           containers:
-           - name: main
-             image: luksa/ssh-monitor
-     ```
-   
-   - Job资源
-   
-     运行单个任务的pod，并且不会像rc或者rs那样在任务完成退出后还重启容器
-   
-     yaml示例
-   
-  ```yaml
-     apiVersion: batch/v1
-     kind: Job
-     metadata:
-       name: batch-job
-     spec:
-       completions: 5   # 顺序运行5个pod
-       parallelism: 2   # 最大并行2个
-       activeDeadlineSeconds: 100  # 最大pod执行时间
-       template:
-         metadata:
-           labels:
-             app: batch-job
-         spec:
-           restartPolicy: OnFailure  # job的重启策略
-           containers:
-           - name: main
-             image: luksa/batch-job
-  ```
 
-     同时也可以使用`kubectl scale job xxx --replicas 3` 并行扩到3个
+7. service nodeport一台主机访问不通
 
-   - CronJob
+   首先检查kube-proxy, 查看对应端口的规则
+
+   ```
+   iptables-save|grep 37031
+   ```
+
    
-     定时任务, 定时执行的对象为Job， 查看`k get cronjobs`
+
+8. 容器资源不足，发现一些pod报错`CreateContainerConfigError`
+
+   这种状态pod还是占用着资源
+
    
-     ```yaml
-     apiVersion: batch/v1beta1
-     kind: CronJob
-     metadata:
-       name: crontab-job
-     spec:
-       schedule: 30 18 * * *  # 每天18.30执行job
-       jobTemplate:
-         spec:
-           template:
-             metadata:
-               labels:
-                 app: periodic-batch-job
-             spec:
-               restartPolicy: OnFailure
-               containers:
-               - name: main
-                 image: luksa/batch-job
-     ```
-   
-     
+
