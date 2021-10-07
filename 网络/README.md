@@ -126,7 +126,7 @@ FEC也是一种纠错算法
 
 FEC 不是正常的业务包，丢了不影响业务的传输，没有关系。加入多少比例的 FEC 要看实际丢包率，FEC 要有足够的比例来填丢包的坑。
 
-![企业微信截图_8a69d46c-2fbe-4bf7-b54d-069a8b33cffa](/Users/a/Library/Containers/com.tencent.WeWorkMac/Data/Library/Application Support/WXWork/Temp/ScreenCapture/企业微信截图_8a69d46c-2fbe-4bf7-b54d-069a8b33cffa.png)
+![企业微信截图_8a69d46c-2fbe-4bf7-b54d-069a8b33cffa](../image/network.png)
 
 ## 参考资料
 
