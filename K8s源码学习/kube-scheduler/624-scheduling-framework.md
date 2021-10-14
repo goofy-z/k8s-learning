@@ -70,9 +70,11 @@ type QueueSortPlugin interface {
 这个插件用于对pod的信息进行预处理，或者检查集群或pod必须满足的某些条件。必须实现一个PreFilter函数，在每个pod的调度周期里只会调度一次，如果执行PreFilter返回一个错误，调度周期被中止。
 
 
-Pre-filter插件可以实现可选的“PreFilterExtensions”接口，该接口定义了**AddPod**和**RemovePod**方法，均会在PreFilter函数之后调用。
+Pre-filter插件可以实现可选的“PreFilterExtensions”接口，该接口定义了**AddPod**和**RemovePod**方法，均会在**PreFilter**函数之后调用，其中**PreFilter**只在每个pod调度时执行一次，而后面两个函数会在每个node执行，一般会在PreFilter中存储这两个函数需要的信息到CycleState中。
 
-附：**AddPod**调度在预处理选择了node之后会再一次筛选，**RemovePod**当pod需要从节点解除绑定，也就是被抢占调度时。
+**AddPod**：在调度框架评估某一个新增的pod对当前待调度pod的影响时会被调用，主要是提名pod还未调度到当前node(等待被抢占pod退出)。
+
+**RemovePod**：当某个pod需要从节点解除绑定，也就是被抢占调度时，执行其来评估对待调度pod的影响。
 
 接口：
 
