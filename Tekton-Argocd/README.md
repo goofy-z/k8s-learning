@@ -122,7 +122,7 @@ Password:
    创建一个repo对象需要能够真正能访问该repo，并且具有权限，因为argocd会主动去访问该git的API从而获取对应的目录结构、分支等信息，我们通过创建带ssh私钥的`Secret`的来或得访问权限。
 
    ```shell
-   argocd repo add git@github.com:DaoCloud/Atr-api.git --ssh-private-key-path /root/.ssh/id_rsa
+   argocd repo add git@github.com:xxxx/xxxx.git --ssh-private-key-path /root/.ssh/id_rsa
    ```
 
    查看repo是否创建成功
@@ -130,7 +130,7 @@ Password:
    ```shell
    argocd repo list
    TYPE  NAME  REPO                                 INSECURE  OCI    LFS    CREDS  STATUS      MESSAGE
-   git         git@github.com:DaoCloud/Atr-api.git  false     false  false  false  Successful
+   git         git@github.com:xxxx/xxxx.git  false     false  false  false  Successful
    ```
 
 2. 创建APP
