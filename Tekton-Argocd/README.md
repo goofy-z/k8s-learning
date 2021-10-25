@@ -4,7 +4,7 @@
 
 Tekton 是一个功能强大且灵活的Kubernetes 原生开源框架，用于云上持续集成和交付（CI/CD）系统，通过Operator的方式集成到k8集群中，并以容器作为驱动，完成流水线模版定义的任务，社区也提供了很多任务模版来方便使用。
 
-###安装tekton
+## 安装tekton
 
 ```shell
 kubectl apply -f https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.26.0/release.yaml
@@ -20,7 +20,7 @@ tekton-pipelines-controller   1/1     1            1           69d
 tekton-pipelines-webhook      1/1     1            1           88d
 ```
 
-###安装Dashboard
+### 安装Dashboard
 
 ```shell
 kubectl apply --filename https://storage.googleapis.com/tekton-releases/dashboard/latest/tekton-dashboard-release.yaml
@@ -37,9 +37,9 @@ kubectl apply --filename https://storage.googleapis.com/tekton-releases/dashboar
 - Pipeline：流水线模版，包含一系列任务并且定义各个任务之间的先后顺序。
 - PipelineRun：流水线模版实例，关联到流水线并传入所有的任务参数来执行
 
-##安装argocd
+## 安装argocd
 
-###创建argocd
+### 创建argocd
 
 ```shell
 kubectl create namespace argocd
@@ -88,14 +88,14 @@ argocd-server-metrics   ClusterIP   172.31.154.210   <none>
 
 注意：`argocd-server`被我修改成了`NodePort`的形式便于我通过UI界面访问，暴露了http和https的端口
 
-###安装客户端
+### 安装客户端
 
 ```
 curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
 chmod +x /usr/local/bin/argocd
 ```
 
-###连接argocd server
+### 连接argocd server
 
 访问`argocd-server`有两种方式，一个是通过UI来登录，一种通过客户端，但首先还是得获取登录的密码，账号是`admin`.
 
@@ -113,7 +113,7 @@ Username: admin
 Password: 
 ```
 
-###创建App
+### 创建App
 
 1. 配置仓库（repo）
 
@@ -182,11 +182,11 @@ Password:
    apps   Deployment  kongtianbei  kaifang-ui  Synced  Healthy        deployment.apps/kaifang-ui unchanged
    ```
 
-###集群中查看效果
+### 集群中查看效果
 
 ![img](../image/argocd-部署.png)
 
-###添加集群
+### 添加集群
 
 argocd添加集群需要在部署了`argocd`的集群能够访问到待添加集群，可以在kubeconfig文件中添加目标集群的集群证书和用户证书等信息，下面命令实际就是去创建一套该sa并绑定到admin的ClusterRole角色
 
@@ -194,9 +194,7 @@ argocd添加集群需要在部署了`argocd`的集群能够访问到待添加集
 argocd cluster add zone_41 // zone_41 位目标集群的context
 ```
 
-
-
-##开始构建CI/CD流水线
+## 开始构建CI/CD流水线
 
 由于一些任务依赖与Argocd创建的应用的配置，需要提前建立好Argocd的应用，具体方式参考上面。
 
@@ -208,11 +206,11 @@ argocd cluster add zone_41 // zone_41 位目标集群的context
 - Git Push Config：提交应用的声明文件到argocd监听的git仓库。
 - Deploy：主动触发Argocd的同步，从而实现镜像替换的部署。
 
-###创建Task
+### 创建Task
 
 接下来会介绍对每一个任务的功能实现细节，在此之前还需要介绍一个tekton的资源对象`workspaces`，在CI过程中多个任务share同一个工作区，所以依赖一个能够在多个任务（也就是pod）间共享的存储，而`workspaces`资源对象正是为每一个Task抽象出一个文件系统，但需要在`TaskRun`中指定其实现方式：包括`Configmap`、`Secret`、`PVC`；如果不需要在多个任务间共享则可以使用`pv`、`emptyDir`的形式。
 
-####Git Clone
+#### Git Clone
 
 这一步是将目标代码仓库代码拉取到工作区，共包含下述几个任务参数：
 
@@ -227,7 +225,7 @@ argocd cluster add zone_41 // zone_41 位目标集群的context
 - source：用于存放代码的工作区，使用pvc实现存储。
 - ssh-directory：一个保存了`ssh私钥`和`known_hosts`的`Secret`，使其能够有目标git仓库的权限。
 
-####Build Image
+#### Build Image
 
 任务的主要功能是构建镜像并push到指定的镜像仓库，任务参数如下：
 
@@ -242,17 +240,17 @@ argocd cluster add zone_41 // zone_41 位目标集群的context
 - source：用于存放代码的工作区，使用pvc实现存储。
 - dockerconfig：一个保存了docker的auth配置信息的`configmap`，使其能够有push镜像仓库的权限。
 
-####Change Config
+#### Change Config
 
 在镜像build完成且推送镜像仓库成功后，需要取更新应用声明文件里的镜像地址，目前是借助`yq`工具修改指定名称文件的`deployment`资源定义文件里镜像，需要自己写`yq`的表达式。
 
 - CONTEXT：工作区需要更改的git项目目录，这个git必须是argocd监听的项目
 - CONFIG_FILE：deployment资源定义文件名，必须是位于argocd设置的`path`下
-- EXPRESSION：yq表达式，例如在`pipelineRun`传入`(.spec.template.spec.containers.[]|select(.name == \"api\").image)|=`，这个表达式的意思就是找到名称为`api`容器并将image字段替换为`=`后的新镜像，在后面定义`pipeline`时，我们时直接将`pipelineRun`传入的`IMAGE`和`EXPRESSION`参数组合成：`$(params.EXPRESSION)\"$(params.IMAGE)\"`传入到该任务，这样完整的yq表达式为``(.spec.template.spec.containers.[]|select(.name == \"api\").image)|="新构建的镜像"`
+- EXPRESSION：yq表达式，例如在`pipelineRun`传入`(.spec.template.spec.containers.[]|select(.name == \"api\").image)|=`，这个表达式的意思就是找到名称为`api`容器并将image字段替换为`=`后的新镜像，在后面定义`pipeline`时，我们时直接将`pipelineRun`传入的`IMAGE`和`EXPRESSION`参数组合成：`$(params.EXPRESSION)\"$(params.IMAGE)\"`传入到该任务，这样完整的yq表达式为`(.spec.template.spec.containers.[]|select(.name == \"api\").image)|="新构建的镜像"`
 
 只依赖`source`这一个workspace。
 
-####Git Push Config
+#### Git Push Config
 
 这一步就是提交应用声明文件的更改。
 
@@ -263,7 +261,7 @@ argocd cluster add zone_41 // zone_41 位目标集群的context
 
 和`Git Clone`一样依赖两个`workspaces`：`srouce`、`ssh-directory`
 
-####Deploy
+#### Deploy
 
 借助argocd的客户端来执行同步过程，
 
