@@ -1,0 +1,38 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: ci-cd-pipelinerun
+  namespace: default
+spec:
+  workspaces:
+  - name: source
+    persistentVolumeClaim:
+      claimName: job-data-pvc
+    subPath: source
+  - name: input
+    persistentVolumeClaim:
+      claimName: job-data-pvc
+    subPath: input
+  - name: ssh-directory
+    secret:
+      secretName: my-ssh-credentials
+  - name: dockerconfig
+    secret:
+      secretName: my-dockerconfig
+  params:
+  - name: IMAGE
+    value: daocloud.io/demo:1001
+  - name: CLONE_URL
+    value: git@github.com:goofy-z/Demo.git
+  - name: CONTEXT
+    value: Demo
+  - name: BRANCH
+    value: master
+  - name: EXPRESSION
+    value: (.spec.template.spec.containers.[]|select(.name == \"api\").image)|=
+  - name: CONFIG_FILE
+    value: ./deploy/deployment.yaml
+  - name: APP_NAME
+    value: kaifang-api
+  pipelineRef:
+    name: ci-cd-pipeline

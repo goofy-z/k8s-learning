@@ -1,0 +1,101 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: git-push-config
+  namespace: default
+spec:
+  description: |-
+    This task can be used to perform git operations.
+    Git command that needs to be run can be passed as a script to the task. This task needs authentication to git in order to push after the git operation.
+  params:
+  - default: docker.io/alpine/git:v2.26.2@sha256:23618034b0be9205d9cc0846eb711b12ba4c9b468efdd8a59aac1d7b1a23363f
+    description: |
+      The base image for the task.
+    name: BASE_IMAGE
+    type: string
+  - default: /root
+    description: |
+      Absolute path to the user's home directory. Set this explicitly if you are running the image as a non-root user or have overridden
+      the gitInitImage param with an image containing custom user configuration.
+    name: USER_HOME
+    type: string
+  - default: "true"
+    description: Log the commands that are executed during `git-clone`'s operation.
+    name: VERBOSE
+    type: string
+  - description: clone dir  
+    name: SUBDIR
+    type: string
+  - default: "master"
+    description: git branch 
+    name: BRANCH
+    type: string
+
+  results:
+  - description: The precise commit SHA after the git operation.
+    name: commit
+  steps:
+  - env:
+    - name: PARAM_VERBOSE
+      value: $(params.VERBOSE)
+    - name: PARAM_USER_HOME
+      value: $(params.USER_HOME)
+    - name: WORKSPACE_SSH_DIRECTORY_BOUND
+      value: $(workspaces.ssh-directory.bound)
+    - name: WORKSPACE_SSH_DIRECTORY_PATH
+      value: $(workspaces.ssh-directory.path)
+    - name: WORKSPACE_BASIC_AUTH_DIRECTORY_BOUND
+      value: $(workspaces.basic-auth.bound)
+    - name: WORKSPACE_BASIC_AUTH_DIRECTORY_PATH
+      value: $(workspaces.basic-auth.path)
+    image: $(params.BASE_IMAGE)
+    name: git
+    resources: {}
+    script: |
+      #!/usr/bin/env sh
+      set -eu
+
+      if [ "${PARAM_VERBOSE}" = "true" ] ; then
+        set -x
+      fi
+      if [ "${WORKSPACE_BASIC_AUTH_DIRECTORY_BOUND}" = "true" ] ; then
+        cp "${WORKSPACE_BASIC_AUTH_DIRECTORY_PATH}/.git-credentials" "${PARAM_USER_HOME}/.git-credentials"
+        cp "${WORKSPACE_BASIC_AUTH_DIRECTORY_PATH}/.gitconfig" "${PARAM_USER_HOME}/.gitconfig"
+        chmod 400 "${PARAM_USER_HOME}/.git-credentials"
+        chmod 400 "${PARAM_USER_HOME}/.gitconfig"
+      fi
+
+      if [ "${WORKSPACE_SSH_DIRECTORY_BOUND}" = "true" ] ; then
+        ls "${WORKSPACE_SSH_DIRECTORY_PATH}/"
+        cp -R "${WORKSPACE_SSH_DIRECTORY_PATH}" "${PARAM_USER_HOME}"/.ssh
+        chmod 700 "${PARAM_USER_HOME}"/.ssh
+        chmod -R 400 "${PARAM_USER_HOME}"/.ssh/*
+      fi
+
+      # Setting up the config for the git.
+      git config --global user.email "robot@robot.com"
+      git config --global user.name "robot"
+      git pull origin $(params.BRANCH) 
+      git add *
+      git commit -m "auto push config after cconfig-hange"
+      git push origin $(params.BRANCH)
+    workingDir: $(workspaces.source.path)/$(params.SUBDIR)
+    imagePullPolicy: IfNotPresent
+  workspaces:
+  - description: A workspace that contains the fetched git repository.
+    name: source
+  - description: |
+      A .ssh directory with private key, known_hosts, config, etc. Copied to
+      the user's home before git commands are executed. Used to authenticate
+      with the git remote when performing the clone. Binding a Secret to this
+      Workspace is strongly recommended over other volume types.
+    name: ssh-directory
+    optional: true
+  - description: |
+      A Workspace containing a .gitconfig and .git-credentials file. These
+      will be copied to the user's home before any git commands are run. Any
+      other files in this Workspace are ignored. It is strongly recommended
+      to use ssh-directory over basic-auth whenever possible and to bind a
+      Secret to this Workspace over other volume types.
+    name: basic-auth
+    optional: true

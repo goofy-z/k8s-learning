@@ -1,0 +1,30 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: config-change
+  namespace: default
+spec:
+  description: >-
+    This task can be used to replace fields in YAML files. For example for altering helm charts on GitOps repos.
+  workspaces:
+    - name: source
+      description: A workspace that contains the file which needs to be altered.
+  params:
+    - name: CONFIG_FILE
+      type: string
+      description: A config file
+    - name: EXPRESSION
+      type: string
+      description: The yq expression to apply. Can be used to replace yaml fields.
+    - description: The project name.
+      name: CONTEXT
+      type: string
+  steps:
+    - name: replace-in-yaml
+      image: mikefarah/yq:4.13.5
+      securityContext:
+         runAsUser: 0
+      workingDir: $(workspaces.source.path)/$(params.CONTEXT)
+      imagePullPolicy: IfNotPresent
+      script: |
+        /usr/bin/yq eval -i "$(params.EXPRESSION)" "$(params.CONFIG_FILE)"

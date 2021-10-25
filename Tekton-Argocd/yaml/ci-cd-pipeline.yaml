@@ -1,0 +1,117 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: ci-cd-pipeline
+  namespace: default
+spec:
+  params:
+  - default: git help
+    description: git script
+    name: GIT_SCRIPT
+    type: string
+  - description: container image
+    name: IMAGE
+    type: string
+  - description: git repository
+    name: CONTEXT
+    type: string
+  - default: ./Dockerfile
+    description: DOCKERFILE path
+    name: DOCKERFILE
+    type: string
+  - name: CLONE_URL
+    type: string
+  - name: BRANCH
+    type: string
+  - name: CONFIG_FILE
+    type: string
+    default: ./deploy/deployment.yaml
+  - default: (.spec.template.spec.containers.[]|select(.name == \"api\").image)|= 
+    name: EXPRESSION
+    type: string
+  - name: APP_NAME
+    type: string
+  tasks:
+  - name: git-clone
+    params:
+    - name: GIT_SCRIPT
+      value: $(params.GIT_SCRIPT)
+    - name: CLONE_URL
+      value: $(params.CLONE_URL)
+    - name: SUBDIR
+      value: $(params.CONTEXT)
+    - name: BRANCH
+      value: $(params.BRANCH)
+    taskRef:
+      kind: Task
+      name: git-cli
+    workspaces:
+    - name: source
+      workspace: source
+    - name: ssh-directory
+      workspace: ssh-directory
+  - name: build-image
+    params:
+    - name: IMAGE
+      value: $(params.IMAGE)
+    - name: CONTEXT
+      value: $(params.CONTEXT)
+    - name: DOCKERFILE
+      value: $(params.DOCKERFILE)
+    runAfter:
+    - git-clone
+    taskRef:
+      kind: Task
+      name: kaniko
+    workspaces:
+    - name: source
+      workspace: source
+    - name: dockerconfig
+      workspace: dockerconfig
+  - name: config-change
+    params:
+    - name: CONFIG_FILE
+      value: $(params.CONFIG_FILE)
+    - name: EXPRESSION
+      value: $(params.EXPRESSION)\"$(params.IMAGE)\"
+    - name: CONTEXT
+      value: $(params.CONTEXT)
+    runAfter:
+    - build-image
+    taskRef:
+      kind: Task
+      name: config-change
+    workspaces:
+    - name: source
+      workspace: source
+  - name: git-push-config
+    params:
+    - name: SUBDIR
+      value: $(params.CONTEXT)
+    - name: BRANCH
+      value: $(params.BRANCH)
+    runAfter:
+    - config-change
+    taskRef:
+      kind: Task
+      name: git-push-config
+    workspaces:
+    - name: source
+      workspace: source
+    - name: ssh-directory
+      workspace: ssh-directory
+  - name: deploy-argocd
+    params:
+    - name: APP_NAME
+      value: $(params.APP_NAME)
+    - name: BRANCH
+      value: $(params.BRANCH)
+    runAfter:
+    - git-push-config
+    taskRef:
+      kind: Task
+      name: deploy-argocd
+  workspaces:
+  - name: source
+  - name: ssh-directory
+  - name: dockerconfig

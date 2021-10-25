@@ -1,0 +1,57 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kaniko
+  namespace: default
+spec:
+  description: |-
+    This Task builds source into a container image using Google's kaniko tool.
+    Kaniko doesn't depend on a Docker daemon and executes each command within a Dockerfile completely in userspace. This enables building container images in environments that can't easily or securely run a Docker daemon, such as a standard Kubernetes cluster.
+  params:
+  - description: Name (reference) of the image to build.
+    name: IMAGE
+    type: string
+  - default: ./Dockerfile
+    description: Path to the Dockerfile to build.
+    name: DOCKERFILE
+    type: string
+  - default: Atr-api
+    description: The build context used by Kaniko.
+    name: CONTEXT
+    type: string
+  - default: []
+    name: EXTRA_ARGS
+    type: array
+  - default: aiotceo/kaniko-executor:v1.5.1
+    description: The image on which builds will run (default is v1.5.1)
+    name: BUILDER_IMAGE
+    type: string
+  results:
+  - description: Digest of the image just built.
+    name: IMAGE-DIGEST
+  steps:
+  - args:
+    - $(params.EXTRA_ARGS[*])
+    - --dockerfile=$(params.DOCKERFILE)
+    - --context=$(workspaces.source.path)/$(params.CONTEXT)
+    - --destination=$(params.IMAGE)
+    image: $(params.BUILDER_IMAGE)
+    name: build-and-push
+    resources:
+      limits:
+        cpu: "2"
+        memory: 4G
+      requests:
+        cpu: "2"
+        memory: 4G
+    securityContext:
+      runAsUser: 0
+    workingDir: $(workspaces.source.path)
+    imagePullPolicy: IfNotPresent
+  workspaces:
+  - description: Holds the context and docker file
+    name: source
+  - description: Includes a docker `config.json`
+    mountPath: /kaniko/.docker
+    name: dockerconfig
+    optional: true

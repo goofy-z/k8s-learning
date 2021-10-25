@@ -1,0 +1,28 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: deploy-argocd
+  namespace: default
+spec:
+  description: This task syncs (deploys) an Argo CD application and waits for it to
+    be healthy. To do so, it requires the address of the Argo CD server and some form
+    of authentication either a username/password or an authentication token.
+  params:
+  - description: name of the application to sync
+    name: APP_NAME
+    type: string
+  - default: HEAD
+    description: the revision to sync to
+    name: BRANCH
+    type: string
+  - default: --
+    name: flags
+    type: string
+  steps:
+  - image: daocloud.io/atsctoo/argocd:v2.1.5
+    name: login
+    resources: {}
+    script: |
+      argocd login "172.31.93.217:80" --insecure --username="admin" --password="VntlGg8mCy1chAzE";
+      argocd app sync "$(params.APP_NAME)" --revision "$(params.BRANCH)" "$(params.flags)"
+      argocd app wait "$(params.APP_NAME)" --health "$(params.flags)"
