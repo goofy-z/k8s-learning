@@ -28,7 +28,7 @@ kubectl apply --filename https://storage.googleapis.com/tekton-releases/dashboar
 
 默认dashboard服务是只能通过ClusterIP访问，我们可以通过修改它的svc的类型为NodePort或者直接在当前节点使用代理访问`kubectl port-forward svc/tekton-dashboard -n tekton-pipelines 37033:9097`
 
-![img](../image/tekton-dashboard.png)
+![image](../image/tekton-dashboard.png)
 
 ### Tekton提供的CRD
 
@@ -184,7 +184,7 @@ Password:
 
 ### 集群中查看效果
 
-![img](../image/argocd-部署.png)
+![image](../image/argocd-部署.png)
 
 ### 添加集群
 
